@@ -27,6 +27,9 @@
 
 #ifdef WINDOWS
 #include <windows.h>
+#include <fileapi.h>
+#else
+#include <unistd.h>
 #endif
 
 #define COLORS_ENABLED                     // remove this define if you don't want color in your shell
@@ -53,15 +56,29 @@
 
 #endif
 
+ /**
+ * \def should_emit_color(void)
+ * Return whether or not the caller should enable colorized output. For
+ * example, if stdout is redirected to a file then the output won't be colored.
+ */
+#ifdef WINDOWS
+#define should_emit_color() (GetFileType(GetStdHandle(STD_OUTPUT_HANDLE)) == FILE_TYPE_CHAR)
+#else
+#define should_emit_color() (isatty(STDOUT_FILENO))
+#endif
+
 /**
  * \fn static void enable_color(const Colors colo)
  * \brief Enable a color in your shell
  *
  * \param colo: the color you want to activate
  */
-static void enable_color(const Colors colo)
+static inline void enable_color(const Colors colo)
 {
 #ifdef COLORS_ENABLED
+    if (!should_emit_color())
+        return;
+
 #ifdef WINDOWS
     HANDLE hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
     if(hStdOutput == INVALID_HANDLE_VALUE)
@@ -87,9 +104,12 @@ static void enable_color(const Colors colo)
  * \fn static void disable_color(const Colors colo)
  * \brief Unset the color you have previously set
  */
-static void disable_color(void)
+static inline void disable_color(void)
 {
 #ifdef COLORS_ENABLED
+    if (!should_emit_color())
+        return;
+
 #ifdef WINDOWS
     HANDLE hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
     if(hStdOutput == INVALID_HANDLE_VALUE)
